@@ -1,20 +1,40 @@
-﻿using Ddon.Core.Use;
-
-namespace BackgroudProcess.Manager
+﻿namespace BackgroudProcess.Manager
 {
     internal class Program
     {
-        static void Main(string[] args)
+#if DEBUG
+        public static string BasePath => AppDomain.CurrentDomain.BaseDirectory;
+#else
+        public static string BasePath
         {
-            var fullname = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data");
-            var keyValues = new DdonDictionary<Drag>(fullname);
-
-            if (!keyValues.Any())
+            get
             {
-                var drag = new Drag(false, "Test.exe", "Test");
-                keyValues.Add(Guid.NewGuid().ToString(), drag);
-                keyValues.SaveAsync().Wait();
+                var userpath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                return Path.Combine(userpath, ".config");
             }
+        }
+#endif
+
+        static async Task Main(string[] args)
+        {
+#if DEBUG
+            if (args.Length == 0)
+                args = new string[] { "status" };
+#endif
+
+            try
+            {
+                await Run(args);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[error]: {ex.Message}");
+            }
+        }
+
+        static async Task Run(string[] args)
+        {
+            var options = DragOptionsManager.GetDragOptions().ToList();
 
             var keys = new[] { "update", "status" };
 
@@ -32,35 +52,33 @@ namespace BackgroudProcess.Manager
             switch (key)
             {
                 case "status":
-                    foreach (var drag in keyValues)
+                    foreach (var drag in options)
                     {
-                        Console.WriteLine($"{drag.Value.Name}:{ProcessUtil.GetState(drag.Value.Pid)}");
+                        Console.WriteLine($"{drag.Name}:{ProcessUtil.GetState(drag.Pid)}");
                     }
                     break;
                 case "update":
-                    foreach (var drag in keyValues)
+                    foreach (var drag in options)
                     {
-                        if (drag.Value.AutoRun && ProcessUtil.GetState(drag.Value.Pid) == State.Stop)
+                        if (drag.AutoRun && ProcessUtil.GetState(drag.Pid) == State.Stop)
                         {
-                            var pid = ProcessUtil.StartProcess(drag.Value.Command);
-                            drag.Value.Pid = pid;
-                            drag.Value.State = State.Run;
-                            keyValues.SaveAsync().Wait();
-                            Console.WriteLine($"启动:{drag.Value.Name}");
+                            var pid = ProcessUtil.StartProcess(drag.BinPath);
+                            drag.Pid = pid;
+                            drag.State = State.Run;
+                            Console.WriteLine($"启动:{drag.Name}");
                         }
-                        if (!drag.Value.AutoRun && ProcessUtil.GetState(drag.Value.Pid) == State.Run)
+                        if (!drag.AutoRun && ProcessUtil.GetState(drag.Pid) == State.Run)
                         {
-                            ProcessUtil.StopProcess(drag.Value.Pid);
-                            drag.Value.Pid = 0;
-                            drag.Value.State = State.Stop;
-                            keyValues.SaveAsync().Wait();
-                            Console.WriteLine($"停止:{drag.Value.Name}");
+                            ProcessUtil.StopProcess(drag.Pid);
+                            drag.Pid = 0;
+                            drag.State = State.Stop;
+                            Console.WriteLine($"停止:{drag.Name}");
                         }
                     }
                     break;
             }
 
-            keyValues.SaveAsync().Wait();
+            await DragOptionsManager.SaveOptionsAsync(options);
         }
     }
 }
