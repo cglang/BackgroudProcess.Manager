@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>bpm</AssemblyName>
+    <PublishAot>true</PublishAot>
   </PropertyGroup>
 
 </Project>
