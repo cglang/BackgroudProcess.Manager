@@ -22,7 +22,7 @@ namespace BackgroudProcess.Manager
         {
             var psi = new ProcessStartInfo(command)
             {
-                WorkingDirectory = string.Empty,
+                WorkingDirectory = Path.GetDirectoryName(command) ?? string.Empty,
                 CreateNoWindow = true
             };
 
