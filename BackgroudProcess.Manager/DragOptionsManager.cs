@@ -1,16 +1,22 @@
-﻿namespace BackgroudProcess.Manager
+namespace BackgroudProcess.Manager
 {
     public class DragOptionsManager
     {
         private static readonly string configPath = Path.Combine(Program.BasePath, "drag.conf");
 
-        public static IEnumerable<DragOptions> GetDragOptions()
+        public static List<DragOptions> GetDragOptions()
         {
-            if (File.Exists(configPath))
-                return File.ReadAllLines(configPath).Select(DragOptions.Parse);
+            if (!File.Exists(configPath))
+            {
+                Directory.CreateDirectory(Program.BasePath);
+                using (File.Create(configPath)) { }
+                return new List<DragOptions>();
+            }
 
-            File.Create(configPath);
-            throw new Exception($"未找到配置文件 {configPath} 已创建新的配置文件");
+            return File.ReadAllLines(configPath)
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(DragOptions.Parse)
+                .ToList();
         }
 
         public static async Task SaveOptionsAsync(List<DragOptions> dragOptions)

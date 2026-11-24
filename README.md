@@ -3,6 +3,8 @@
 一个极简的命令行后台进程管理器。通过命令行登记若干「名字 → 可执行文件路径」的条目，并用 `update` 命令按 `autoRun` 开关自动拉起 / 停止进程，适合放进计划任务或启动脚本里周期性执行。
 
 - 程序名（AssemblyName）：`bpm`
+- 版本：`v0.0.2`
+- 作者：`cglang`
 - 目标框架：.NET 10
 - 发布方式：AOT（`PublishAot=true`），发布产物无运行时依赖
 
@@ -46,25 +48,37 @@ dotnet publish -c Release -r win-x64
 ## 命令用法
 
 ```bash
-bpm                         # 等同于 bpm update
-bpm status                  # 查看所有条目状态
+bpm                         # 等同于 bpm list：以表格列出全部配置
+bpm list | ls | status      # 同上
 bpm update                  # 按 autoRun 同步所有进程
 bpm add <name> <binPath> [autoRun]
-bpm remove <name>
-bpm start <name>
-bpm stop <name>
-bpm edit <name> <binPath|autoRun> <value>
+bpm run | start <编号|名称>   # 启动
+bpm stop <编号|名称>          # 停止
+bpm remove <编号|名称>        # 删除
+bpm edit <编号|名称> <binPath|autoRun> <value>
+bpm version                 # 查看版本号（也可用 -v / --version）
 ```
 
-不带参数或参数无法识别时，会打印命令帮助。
+`<编号>` 就是表格里从上往下的「序号」（从 1 开始），也可以直接写名称；数字优先按编号解析。
 
-### status — 查看状态
+参数无法识别时会打印命令帮助。
+
+### 无参数 / list — 查看配置列表
 
 ```bash
-bpm status
+bpm
 ```
 
-输出形如 `name:Run` / `name:Stop`。状态是根据已记录的 `pid` 实时判断进程是否存活得出的。
+输出表格：
+
+```
+序号  名称    运行状态  路径                             自动运行
+----  ------  --------  -------------------------------  --------
+1     nginx   运行中    C:\tools\nginx\nginx.exe         是
+2     记事本  已停止    C:\Windows\System32\notepad.exe  否
+```
+
+「运行状态」是根据已记录的 `pid` 实时判断进程是否存活得出的；路径过长时会截断显示（不改动配置）。
 
 ### update — 声明式同步（核心命令）
 
@@ -92,7 +106,8 @@ bpm add api "C:\apps\api\api.exe" true
 ### remove — 删除条目
 
 ```bash
-bpm remove api
+bpm remove 2        # 删掉编号为 2 的条目
+bpm remove api      # 也可以按名称
 ```
 
 只删除配置条目，不会去杀进程；如需先停止请先执行 `bpm stop <name>`。
@@ -100,8 +115,8 @@ bpm remove api
 ### start / stop — 手动控制
 
 ```bash
-bpm start api     # 立即启动，并记录 pid，autoRun 不变
-bpm stop api      # 杀掉进程，pid 归零，autoRun 不变
+bpm run 1         # 立即启动编号 1（run 与 start 等价）
+bpm stop 1        # 杀掉进程，pid 归零，autoRun 不变
 ```
 
 `start` 会写回 `state=Run`，但**不会**修改 `autoRun`，因此下一次 `bpm update` 若 `autoRun=false` 会把它再停掉。
@@ -109,8 +124,8 @@ bpm stop api      # 杀掉进程，pid 归零，autoRun 不变
 ### edit — 修改条目字段
 
 ```bash
-bpm edit api "C:\apps\api\api-v2.exe"   # 改 binPath
-bpm edit api autoRun true               # 改 autoRun
+bpm edit 1 "C:\apps\api\api-v2.exe"   # 改 binPath
+bpm edit 1 autoRun true               # 改 autoRun
 ```
 
 只支持修改 `binPath` 与 `autoRun` 两个字段，其余字段会提示错误。字段名不区分大小写。
@@ -126,15 +141,15 @@ bpm add worker "C:\apps\worker\worker.exe" true
 bpm update
 
 # 3. 查看是否都在跑
-bpm status
+bpm
 
-# 4. 让 worker 不再自动运行，并停掉它
-bpm edit worker autoRun false
+# 4. 让 worker（假设编号 2）不再自动运行，并停掉它
+bpm edit 2 autoRun false
 bpm update
 
-# 5. 彻底移除 web
-bpm stop web
-bpm remove web
+# 5. 彻底移除 web（假设编号 1）
+bpm stop 1
+bpm remove 1
 ```
 
 配合 Windows 计划任务，每隔几分钟执行一次 `bpm update` 即可实现进程守护。

@@ -14,18 +14,19 @@
 
         public static DragOptions Parse(string config)
         {
-            var keyValuePairs = config
-                .Split('|')
-                .Select(part => part.Split('='))
+            var pairs = config
+                .Split('|', StringSplitOptions.RemoveEmptyEntries)
+                .Select(part => part.Split('=', 2))
+                .Where(split => split.Length == 2)
                 .ToDictionary(split => split[0], split => split[1]);
 
             return new()
             {
-                Pid = int.Parse(keyValuePairs["pid"]),
-                Name = keyValuePairs["name"],
-                State = Enum.Parse<State>(keyValuePairs["state"]),
-                AutoRun = bool.Parse(keyValuePairs["autoRun"]),
-                BinPath = keyValuePairs["binPath"],
+                Pid = pairs.TryGetValue("pid", out var pid) && int.TryParse(pid, out var p) ? p : 0,
+                Name = pairs.TryGetValue("name", out var name) ? name : string.Empty,
+                State = pairs.TryGetValue("state", out var state) && Enum.TryParse<State>(state, out var s) ? s : State.Stop,
+                AutoRun = pairs.TryGetValue("autoRun", out var autoRun) && bool.TryParse(autoRun, out var a) && a,
+                BinPath = pairs.TryGetValue("binPath", out var binPath) ? binPath : string.Empty,
             };
         }
 
